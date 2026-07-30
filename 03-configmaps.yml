@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-plugins
+  namespace: jenkins
+data:
+  plugins.txt: |
+    configuration-as-code
+    kubernetes
+    workflow-aggregator
+    git
+    credentials-binding
+    ssh-agent
+    ansicolor
+    timestamper
+    ws-cleanup
+    matrix-auth
+    build-timeout
+    antisamy-markup-formatter
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-casc-config
+  namespace: jenkins
+data:
+  casc.yaml: |
+    jenkins:
+      systemMessage: "Home lab Jenkins — managed by Configuration as Code."
+      numExecutors: 0
+      mode: EXCLUSIVE
+      securityRealm:
+        local:
+          allowsSignup: false
+          users:
+            - id: "${ADMIN_USER}"
+              password: "${ADMIN_PASSWORD}"
+      authorizationStrategy:
+        globalMatrix:
+          permissions:
+            - "Overall/Administer:${ADMIN_USER}"
+            - "Overall/Read:authenticated"
+      clouds:
+        - kubernetes:
+            name: "kubernetes"
+            serverUrl: "https://kubernetes.default"
+            namespace: "jenkins"
+            jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
+            jenkinsTunnel: "jenkins.jenkins.svc.cluster.local:50000"
+            containerCapStr: "5"
+            templates:
+              - name: "default-agent"
+                label: "jenkins-agent"
+                serviceAccount: "jenkins"
+                idleMinutes: 5
+                podRetention: "never"
+                containers:
+                  - name: "jnlp"
+                    image: "jenkins/inbound-agent:latest-jdk17"
+                    resourceRequestCpu: "250m"
+                    resourceRequestMemory: "256Mi"
+                    resourceLimitCpu: "1"
+                    resourceLimitMemory: "512Mi"
+    unclassified:
+      location:
+        # No DNS in this lab — set this to http://<node-ip>:<nodeport>/ after
+        # you know the NodePort (step 6 below), or an /etc/hosts entry if you add one.
+        url: "http://192.168.1.100:30080/"

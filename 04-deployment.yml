@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+  labels:
+    app: jenkins
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      serviceAccountName: jenkins
+      securityContext:
+        fsGroup: 2000
+        runAsUser: 2000
+        runAsNonRoot: true
+      initContainers:
+        - name: install-plugins
+          image: jenkins/jenkins:lts-jdk25
+          command:
+            - jenkins-plugin-cli
+            - "--plugin-file"
+            - /var/jenkins_plugins_config/plugins.txt
+            - "--plugin-download-directory"
+            - /var/jenkins_home/plugins
+          env:
+            - name: HOME
+              value: /var/jenkins_home
+            - name: JAVA_OPTS
+              value: "-Duser.home=/var/jenkins_home"  
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+            - name: plugins-config
+              mountPath: /var/jenkins_plugins_config
+          securityContext:
+            runAsUser: 2000
+      containers:
+        - name: jenkins
+          image: jenkins/jenkins:lts-jdk25
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: agent
+              containerPort: 50000
+          env:
+            - name: JAVA_OPTS
+              value: "-Djenkins.install.runSetupWizard=false -Xmx1024m -Xmx512m"
+            - name: CASC_JENKINS_CONFIG
+              value: "/var/jenkins_casc_config/casc.yaml"
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-admin-credentials
+                  key: username
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jenkins-admin-credentials
+                  key: password
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+            - name: casc-config
+              mountPath: /var/jenkins_casc_config
+              readOnly: true
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
+     
+      volumes:
+        - name: jenkins-home
+          persistentVolumeClaim:
+            claimName: jenkins-pvc
+        - name: plugins-config
+          configMap:
+            name: jenkins-plugins
+        - name: casc-config
+          configMap:
+            name: jenkins-casc-config
+
