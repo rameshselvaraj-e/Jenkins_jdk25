@@ -1,4 +1,5 @@
-# Jenkins_jdk25
+# Jenkins:lts
+# Ref :  https://phoenixnap.com/kb/jenkins-kubernetes
 A home lab without DNS/AD actually simplifies things — you skip LDAP entirely (local Jenkins auth is the right call anyway) and just need to reach Jenkins by IP:port or an /etc/hosts entry instead of a real domain. I'll give you one clean, consolidated set of files.
 
 One honest limit up front: I don't have access to your home lab cluster from this sandbox — I can't run kubectl apply against your actual nodes. What I can do is validate every YAML file's syntax here (real output below), give you the exact command sequence with what output to expect, and you run it on your machine. Let's go.
