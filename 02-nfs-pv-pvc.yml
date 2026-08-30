@@ -1,0 +1,59 @@
+# jenkins-nfs-pv-pvc.yaml
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jenkins-nfs-pv
+  labels:
+    app.kubernetes.io/name: jenkins
+    storage: nfs
+spec:
+  capacity:
+    storage: 10Gi
+
+  volumeMode: Filesystem
+
+  accessModes:
+    - ReadWriteMany
+
+  # Keep Jenkins data on the NFS server if the PVC is deleted.
+  persistentVolumeReclaimPolicy: Retain
+
+  # Static PV: this StorageClass name must match the PVC.
+  storageClassName: jenkins-nfs-static
+
+  # Optional but common NFS mount settings.
+  mountOptions:
+    - nfsvers=4.1
+    - hard
+    - timeo=600
+    - retrans=2
+
+  nfs:
+    server: 10.0.10.20
+    path: /data/jenkins
+    readOnly: false
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-home
+  namespace: jenkins
+  labels:
+    app.kubernetes.io/name: jenkins
+spec:
+  accessModes:
+    - ReadWriteMany
+
+  volumeMode: Filesystem
+
+  # Must match the PV storageClassName exactly.
+  storageClassName: jenkins-nfs-static
+
+  # Explicitly bind this PVC to this particular PV.
+  volumeName: jenkins-nfs-pv
+
+  resources:
+    requests:
+      storage: 10Gi
